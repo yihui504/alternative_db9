@@ -15,14 +15,14 @@
 
 ## 技术栈
 
-| 组件 | 技术 |
-|------|------|
-| 数据库 | PostgreSQL 16 + pgvector |
-| 文件存储 | MinIO (S3 兼容) |
-| 嵌入模型 | Ollama (可选) |
-| API 框架 | Go + Gin |
-| CLI 工具 | Go + Cobra |
-| 容器编排 | Docker Compose |
+| 组件     | 技术                       |
+| ------ | ------------------------ |
+| 数据库    | PostgreSQL 16 + pgvector |
+| 文件存储   | MinIO (S3 兼容)            |
+| 嵌入模型   | Ollama (可选)              |
+| API 框架 | Go + Gin                 |
+| CLI 工具 | Go + Cobra               |
+| 容器编排   | Docker Compose           |
 
 ## 快速开始
 
@@ -36,8 +36,8 @@
 
 ```bash
 # 克隆项目
-git clone https://github.com/openclaw-db9/oc-db9.git
-cd oc-db9
+git clone https://github.com/yihui504/alternative_db9.git
+cd alternative_db9
 
 # 启动所有服务
 docker-compose up -d
@@ -47,6 +47,7 @@ docker-compose ps
 ```
 
 服务启动后：
+
 - API 服务：http://localhost:8080
 - MinIO 控制台：http://localhost:9001 (用户名/密码: minioadmin/minioadmin)
 - PostgreSQL：localhost:5432 (用户名/密码: postgres/postgres)
@@ -88,67 +89,67 @@ oc-db9/
 
 ### 数据库管理
 
-| 端点 | 方法 | 描述 |
-|------|------|------|
-| `/api/v1/databases` | POST | 创建数据库 |
-| `/api/v1/databases` | GET | 列出所有数据库 |
-| `/api/v1/databases/:id` | GET | 获取数据库详情 |
-| `/api/v1/databases/:id` | DELETE | 删除数据库 |
-| `/api/v1/databases/:id/sql` | POST | 执行 SQL |
-| `/api/v1/databases/:id/connect` | GET | 获取连接信息 |
+| 端点                              | 方法     | 描述      |
+| ------------------------------- | ------ | ------- |
+| `/api/v1/databases`             | POST   | 创建数据库   |
+| `/api/v1/databases`             | GET    | 列出所有数据库 |
+| `/api/v1/databases/:id`         | GET    | 获取数据库详情 |
+| `/api/v1/databases/:id`         | DELETE | 删除数据库   |
+| `/api/v1/databases/:id/sql`     | POST   | 执行 SQL  |
+| `/api/v1/databases/:id/connect` | GET    | 获取连接信息  |
 
 ### 文件存储
 
-| 端点 | 方法 | 描述 |
-|------|------|------|
-| `/api/v1/files/upload` | POST | 上传文件 |
-| `/api/v1/files` | GET | 列出文件 |
-| `/api/v1/files/:id` | GET | 下载文件 |
-| `/api/v1/files/:id` | DELETE | 删除文件 |
+| 端点                     | 方法     | 描述   |
+| ---------------------- | ------ | ---- |
+| `/api/v1/files/upload` | POST   | 上传文件 |
+| `/api/v1/files`        | GET    | 列出文件 |
+| `/api/v1/files/:id`    | GET    | 下载文件 |
+| `/api/v1/files/:id`    | DELETE | 删除文件 |
 
 ### 分支管理
 
-| 端点 | 方法 | 描述 |
-|------|------|------|
-| `/api/v1/branches` | POST | 创建分支 |
-| `/api/v1/branches` | GET | 列出分支 |
+| 端点                     | 方法     | 描述   |
+| ---------------------- | ------ | ---- |
+| `/api/v1/branches`     | POST   | 创建分支 |
+| `/api/v1/branches`     | GET    | 列出分支 |
 | `/api/v1/branches/:id` | DELETE | 删除分支 |
 
 ### 定时任务
 
-| 端点 | 方法 | 描述 |
-|------|------|------|
-| `/api/v1/cron` | POST | 创建定时任务 |
-| `/api/v1/cron` | GET | 列出任务 |
-| `/api/v1/cron/:id` | DELETE | 删除任务 |
-| `/api/v1/cron/:id/logs` | GET | 获取执行日志 |
+| 端点                      | 方法     | 描述     |
+| ----------------------- | ------ | ------ |
+| `/api/v1/cron`          | POST   | 创建定时任务 |
+| `/api/v1/cron`          | GET    | 列出任务   |
+| `/api/v1/cron/:id`      | DELETE | 删除任务   |
+| `/api/v1/cron/:id/logs` | GET    | 获取执行日志 |
 
 ### 向量搜索
 
-| 端点 | 方法 | 描述 |
-|------|------|------|
+| 端点                            | 方法   | 描述     |
+| ----------------------------- | ---- | ------ |
 | `/api/v1/embeddings/generate` | POST | 生成嵌入向量 |
-| `/api/v1/embeddings/tables` | POST | 创建向量表 |
-| `/api/v1/embeddings/insert` | POST | 插入向量 |
-| `/api/v1/embeddings/search` | POST | 相似性搜索 |
+| `/api/v1/embeddings/tables`   | POST | 创建向量表  |
+| `/api/v1/embeddings/insert`   | POST | 插入向量   |
+| `/api/v1/embeddings/search`   | POST | 相似性搜索  |
 
 ### 备份恢复
 
-| 端点 | 方法 | 描述 |
-|------|------|------|
-| `/api/v1/backups` | POST | 创建备份 |
-| `/api/v1/backups` | GET | 列出备份 |
-| `/api/v1/backups/restore` | POST | 恢复备份 |
-| `/api/v1/backups/:id` | DELETE | 删除备份 |
-| `/api/v1/backups/:id/download` | GET | 下载备份 |
+| 端点                             | 方法     | 描述   |
+| ------------------------------ | ------ | ---- |
+| `/api/v1/backups`              | POST   | 创建备份 |
+| `/api/v1/backups`              | GET    | 列出备份 |
+| `/api/v1/backups/restore`      | POST   | 恢复备份 |
+| `/api/v1/backups/:id`          | DELETE | 删除备份 |
+| `/api/v1/backups/:id/download` | GET    | 下载备份 |
 
 ### 监控
 
-| 端点 | 方法 | 描述 |
-|------|------|------|
-| `/api/v1/monitor/health` | GET | 健康状态 |
-| `/api/v1/monitor/stats` | GET | 数据库统计 |
-| `/api/v1/monitor/system` | GET | 系统信息 |
+| 端点                       | 方法  | 描述    |
+| ------------------------ | --- | ----- |
+| `/api/v1/monitor/health` | GET | 健康状态  |
+| `/api/v1/monitor/stats`  | GET | 数据库统计 |
+| `/api/v1/monitor/system` | GET | 系统信息  |
 
 ## CLI 工具
 
@@ -175,15 +176,15 @@ go build -o oc-db9.exe ./cmd/oc-db9
 
 ### 环境变量
 
-| 变量 | 描述 | 默认值 |
-|------|------|--------|
-| `DATABASE_URL` | PostgreSQL 连接字符串 | `postgres://postgres:postgres@postgres:5432/postgres` |
-| `MINIO_ENDPOINT` | MinIO 端点 | `minio:9000` |
-| `MINIO_ACCESS_KEY` | MinIO 访问密钥 | `minioadmin` |
-| `MINIO_SECRET_KEY` | MinIO 密钥 | `minioadmin` |
-| `OLLAMA_BASE_URL` | Ollama 服务地址 | `http://ollama:11434` |
-| `API_PORT` | API 服务端口 | `8080` |
-| `POSTGRES_PASSWORD` | PostgreSQL 密码 | `postgres` |
+| 变量                  | 描述               | 默认值                                                   |
+| ------------------- | ---------------- | ----------------------------------------------------- |
+| `DATABASE_URL`      | PostgreSQL 连接字符串 | `postgres://postgres:postgres@postgres:5432/postgres` |
+| `MINIO_ENDPOINT`    | MinIO 端点         | `minio:9000`                                          |
+| `MINIO_ACCESS_KEY`  | MinIO 访问密钥       | `minioadmin`                                          |
+| `MINIO_SECRET_KEY`  | MinIO 密钥         | `minioadmin`                                          |
+| `OLLAMA_BASE_URL`   | Ollama 服务地址      | `http://ollama:11434`                                 |
+| `API_PORT`          | API 服务端口         | `8080`                                                |
+| `POSTGRES_PASSWORD` | PostgreSQL 密码    | `postgres`                                            |
 
 ### Docker Compose 配置
 
@@ -220,18 +221,24 @@ docker-compose build
 
 ## 与 db9.ai 对比
 
-| 功能 | db9.ai | OpenClaw-db9 |
-|------|--------|--------------|
-| 即时数据库 | ✅ | ✅ |
-| 内置嵌入 | ✅ | ✅ (Ollama) |
-| 文件存储 | ✅ fs9 | ✅ MinIO |
-| HTTP 扩展 | ✅ pg_net | ⚠️ 应用层 |
-| 定时任务 | ✅ pg_cron | ✅ 应用层 |
-| 数据库分支 | ✅ CoW | ✅ 模板复制 |
-| 向量搜索 | ✅ | ✅ pgvector |
-| 类型生成 | ✅ | ✅ |
-| 自托管 | ❌ | ✅ |
-| 开源 | 部分 | ✅ MIT |
+| 功能      | db9.ai     | OpenClaw-db9 |
+| ------- | ---------- | ------------ |
+| 即时数据库   | ✅          | ✅            |
+| 内置嵌入    | ✅          | ✅ (Ollama)   |
+| 文件存储    | ✅ fs9      | ✅ MinIO      |
+| HTTP 扩展 | ✅ pg_net  | ⚠️ 应用层       |
+| 定时任务    | ✅ pg_cron | ✅ 应用层        |
+| 数据库分支   | ✅ CoW      | ✅ 模板复制       |
+| 向量搜索    | ✅          | ✅ pgvector   |
+| 类型生成    | ✅          | ✅            |
+| 自托管     | ❌          | ✅            |
+| 开源      | 部分         | ✅ MIT        |
+
+## 文档
+
+- [API 参考文档](docs/api-reference.md)
+- [部署指南](docs/deployment-guide.md)
+- [CLI 使用文档](docs/cli-reference.md)
 
 ## 许可证
 
@@ -243,4 +250,4 @@ MIT License
 
 ## 支持
 
-- GitHub Issues: https://github.com/openclaw-db9/oc-db9/issues
+- GitHub Issues: https://github.com/yihui504/alternative_db9/issues
