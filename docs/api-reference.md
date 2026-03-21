@@ -344,6 +344,79 @@ DELETE /api/v1/files/:id
 
 ---
 
+### 查询文件内容
+
+将文件内容作为表格数据查询，支持 CSV 和 JSONL 格式。
+
+**请求**
+
+```
+GET /api/v1/files/query
+```
+
+**查询参数**
+
+| 参数 | 类型 | 必填 | 描述 |
+|------|------|------|------|
+| database_id | string | 是 | 数据库 ID |
+| path | string | 是 | 文件路径 |
+
+**响应**
+
+```json
+{
+  "results": [
+    {
+      "_line_number": 1,
+      "_path": "/data/users.csv",
+      "name": "Alice",
+      "age": 30,
+      "city": "NYC"
+    },
+    {
+      "_line_number": 2,
+      "_path": "/data/users.csv",
+      "name": "Bob",
+      "age": 25,
+      "city": "LA"
+    }
+  ],
+  "count": 2
+}
+```
+
+**示例**
+
+```bash
+# 查询 CSV 文件
+curl "http://localhost:8080/api/v1/files/query?database_id={db-id}&path=/data/users.csv"
+
+# 使用 CLI
+oc-db9 fs query /data/users.csv --db {db-id}
+```
+
+**支持的文件格式**
+
+- CSV (自动类型推断)
+- JSONL (动态列发现)
+- Parquet (列式存储，高性能)
+
+**Parquet 优势**
+
+Parquet 是大数据领域标准的列式存储格式：
+- 查询速度快（只读取需要的列，比 CSV 快 10-100 倍）
+- 压缩率高（节省 50-90% 存储空间）
+- 自带数据类型信息
+
+**元数据列**
+
+| 列名 | 描述 |
+|------|------|
+| `_line_number` | 行号 |
+| `_path` | 文件路径 |
+
+---
+
 ## 分支管理
 
 ### 创建分支

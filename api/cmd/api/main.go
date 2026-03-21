@@ -34,6 +34,8 @@ func main() {
 		log.Printf("Warning: Failed to initialize MinIO: %v", err)
 	} else {
 		log.Println("Connected to MinIO")
+		handlers.InitFileBridgeService()
+		log.Println("File bridge service initialized")
 	}
 
 	handlers.SetDBPool(dbPool)
@@ -74,6 +76,7 @@ func main() {
 			files.GET("", handlers.ListFiles)
 			files.GET("/:id", handlers.DownloadFile)
 			files.DELETE("/:id", handlers.DeleteFile)
+			files.GET("/query", handlers.QueryFile)
 		}
 
 		branches := v1.Group("/branches")

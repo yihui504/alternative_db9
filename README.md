@@ -226,6 +226,7 @@ docker-compose build
 | 即时数据库   | ✅          | ✅            |
 | 内置嵌入    | ✅          | ✅ (Ollama)   |
 | 文件存储    | ✅ fs9      | ✅ MinIO      |
+| SQL 查询文件 | ✅          | ✅ **新增**   |
 | HTTP 扩展 | ✅ pg_net  | ⚠️ 应用层       |
 | 定时任务    | ✅ pg_cron | ✅ 应用层        |
 | 数据库分支   | ✅ CoW      | ✅ 模板复制       |
@@ -233,6 +234,46 @@ docker-compose build
 | 类型生成    | ✅          | ✅            |
 | 自托管     | ❌          | ✅            |
 | 开源      | 部分         | ✅ MIT        |
+
+## 核心特性：SQL 查询文件
+
+OpenClaw-db9 实现了 db9.ai 最核心的创新 - 用 SQL 直接查询文件：
+
+```bash
+# 1. 上传文件
+$ oc-db9 fs cp ./users.csv :/data/users.csv --db mydb
+
+# 2. 用 SQL 查询文件内容
+$ oc-db9 db sql mydb --command "SELECT * FROM fs9('/data/users.csv')"
+
+# 3. 复杂查询 - 去重并插入到正式表
+$ oc-db9 db sql mydb --command "
+  INSERT INTO users (name, age, city)
+  SELECT DISTINCT 
+    data->>'name',
+    (data->>'age')::int,
+    data->>'city'
+  FROM fs9('/data/users.csv')
+  WHERE data->>'name' IS NOT NULL
+"
+```
+
+支持文件格式：
+- CSV (自动类型推断)
+- JSONL (动态列发现)
+- Parquet (列式存储，高性能) ✅ 新增
+
+**Parquet 优势**
+
+Parquet 是列式存储格式，适合大数据场景：
+- 查询速度快（只读取需要的列）
+- 压缩率高（节省 50-90% 存储空间）
+- 自带数据类型信息
+
+```bash
+# 查询 Parquet 文件（比 CSV 快 10-100 倍）
+$ oc-db9 fs query /data/large_dataset.parquet --db mydb
+```
 
 ## 文档
 

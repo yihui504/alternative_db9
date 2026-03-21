@@ -7,6 +7,7 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 
@@ -147,13 +148,70 @@ var fsCatCmd = &cobra.Command{
 	},
 }
 
+var fsQueryCmd = &cobra.Command{
+	Use:   "query <path>",
+	Short: "Query file content as table",
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		path := args[0]
+		dbID, _ := cmd.Flags().GetString("db")
+
+		if dbID == "" {
+			fmt.Fprintln(os.Stderr, "Error: --db is required")
+			os.Exit(1)
+		}
+
+		resp, err := http.Get(apiURL + "/api/v1/files/query?database_id=" + dbID + "&path=" + url.QueryEscape(path))
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "Error:", err)
+			os.Exit(1)
+		}
+		defer resp.Body.Close()
+
+		data, _ := io.ReadAll(resp.Body)
+
+		var result struct {
+			Results []map[string]interface{} `json:"results"`
+			Count   int                      `json:"count"`
+		}
+		json.Unmarshal(data, &result)
+
+		// 表格输出
+		if len(result.Results) > 0 {
+			// 打印表头
+			for key := range result.Results[0] {
+				fmt.Printf("%s\t", key)
+			}
+			fmt.Println()
+
+			// 打印分隔线
+			for range result.Results[0] {
+				fmt.Printf("%s\t", "----")
+			}
+			fmt.Println()
+
+			// 打印数据
+			for _, row := range result.Results {
+				for _, val := range row {
+					fmt.Printf("%v\t", val)
+				}
+				fmt.Println()
+			}
+		}
+
+		fmt.Printf("\nTotal: %d rows\n", result.Count)
+	},
+}
+
 func init() {
 	rootCmd.AddCommand(fsCmd)
 	fsCmd.AddCommand(fsCpCmd)
 	fsCmd.AddCommand(fsLsCmd)
 	fsCmd.AddCommand(fsRmCmd)
 	fsCmd.AddCommand(fsCatCmd)
+	fsCmd.AddCommand(fsQueryCmd)
 
 	fsCpCmd.Flags().String("db", "", "Database ID")
 	fsLsCmd.Flags().String("db", "", "Database ID")
+	fsQueryCmd.Flags().String("db", "", "Database ID")
 }
