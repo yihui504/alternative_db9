@@ -44,10 +44,11 @@ var Templates = map[string]DatabaseTemplate{
 			{
 				Name: "user_preferences",
 				Columns: []Column{
-					{Name: "user_id", Type: "UUID PRIMARY KEY"},
+					{Name: "user_id", Type: "TEXT NOT NULL"},
 					{Name: "key", Type: "TEXT NOT NULL"},
 					{Name: "value", Type: "JSONB NOT NULL"},
 					{Name: "updated_at", Type: "TIMESTAMPTZ DEFAULT NOW()"},
+					{Name: "PRIMARY KEY", Type: "(user_id, key)"},
 				},
 			},
 			{

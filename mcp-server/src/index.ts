@@ -14,6 +14,61 @@ const API_BASE_URL = process.env.OC_DB9_API_URL || "http://localhost:8080";
 
 // 工具定义
 const TOOLS: Tool[] = [
+  // --- AI 特化记忆工具 (High-level Memory Skills) ---
+  {
+    name: "store_memory",
+    description: "存储重要的长期记忆（如事实、概念、用户特征等）。这会自动转换为向量以便未来检索。",
+    inputSchema: {
+      type: "object",
+      properties: {
+        database_id: { type: "string", description: "记忆数据库的 ID" },
+        content: { type: "string", description: "要记忆的具体内容" },
+        metadata: { type: "object", description: "附加的元数据（如分类、来源等），可选" }
+      },
+      required: ["database_id", "content"]
+    }
+  },
+  {
+    name: "search_memory",
+    description: "检索长期记忆。当你需要回忆之前的上下文、事实或用户相关信息时使用。",
+    inputSchema: {
+      type: "object",
+      properties: {
+        database_id: { type: "string", description: "记忆数据库的 ID" },
+        query: { type: "string", description: "你要搜索的自然语言问题或关键词" },
+        limit: { type: "number", description: "返回的记忆条数（默认 5）", default: 5 }
+      },
+      required: ["database_id", "query"]
+    }
+  },
+  {
+    name: "set_preference",
+    description: "设置或更新用户的偏好设置（如代码风格、语言习惯等）。",
+    inputSchema: {
+      type: "object",
+      properties: {
+        database_id: { type: "string", description: "记忆数据库的 ID" },
+        user_id: { type: "string", description: "用户标识符（如 'default_user'）" },
+        key: { type: "string", description: "偏好的键名（如 'coding_style'）" },
+        value: { type: "object", description: "偏好的具体内容（JSON 格式）" }
+      },
+      required: ["database_id", "user_id", "key", "value"]
+    }
+  },
+  {
+    name: "get_preference",
+    description: "获取特定用户的偏好设置。",
+    inputSchema: {
+      type: "object",
+      properties: {
+        database_id: { type: "string", description: "记忆数据库的 ID" },
+        user_id: { type: "string", description: "用户标识符" },
+        key: { type: "string", description: "偏好的键名（可选，不传则返回该用户所有偏好）" }
+      },
+      required: ["database_id", "user_id"]
+    }
+  },
+  // --- 基础数据库工具 (Low-level Database Tools) ---
   {
     name: "create_database",
     description: "创建一个新的 PostgreSQL 数据库实例",
@@ -222,11 +277,6 @@ const server = new Server(
   {
     name: "oc-db9-mcp-server",
     version: "1.0.0",
-  },
-  {
-    capabilities: {
-      tools: {},
-    },
   }
 );
 
@@ -237,10 +287,108 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 
 // 处理工具调用
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  const { name, arguments: args } = request.params;
+  const { name } = request.params;
+  const args = request.params.arguments || {};
 
   try {
     switch (name) {
+      // --- AI 特化记忆工具 ---
+      case "store_memory": {
+        const response = await axios.post(
+          `${API_BASE_URL}/api/v1/embeddings/insert`,
+          {
+            database_id: args.database_id,
+            table_name: "knowledge_base",
+            content: args.content,
+            metadata: args.metadata || {}
+          }
+        );
+        return {
+          content: [{
+            type: "text",
+            text: `✅ 记忆已成功保存！(ID: ${response.data.id})\n内容: "${args.content}"`
+          }]
+        };
+      }
+
+      case "search_memory": {
+        const response = await axios.post(
+          `${API_BASE_URL}/api/v1/embeddings/search`,
+          {
+            database_id: args.database_id,
+            table_name: "knowledge_base",
+            query: args.query,
+            limit: args.limit || 5
+          }
+        );
+        const results = response.data.results || [];
+        if (results.length === 0) {
+          return { content: [{ type: "text", text: "没有找到相关的记忆。" }] };
+        }
+        let text = `🔍 找到 ${results.length} 条相关记忆:\n\n`;
+        results.forEach((item: any, index: number) => {
+          text += `[${index + 1}] (相关度: ${(item.similarity * 100).toFixed(1)}%)\n`;
+          text += `内容: ${item.content}\n`;
+          if (item.metadata && Object.keys(item.metadata).length > 0) {
+            text += `元数据: ${JSON.stringify(item.metadata)}\n`;
+          }
+          text += '\n';
+        });
+        return { content: [{ type: "text", text }] };
+      }
+
+      case "set_preference": {
+        const sql = `
+          INSERT INTO user_preferences (user_id, key, value)
+          VALUES ($1, $2, $3)
+          ON CONFLICT (user_id, key) DO UPDATE 
+          SET value = EXCLUDED.value, updated_at = NOW();
+        `;
+        const response = await axios.post(
+          `${API_BASE_URL}/api/v1/databases/${args.database_id}/sql`,
+          {
+            SQL: sql,
+            params: [args.user_id, args.key, JSON.stringify(args.value)]
+          }
+        );
+        return {
+          content: [{
+            type: "text",
+            text: `✅ 偏好设置已更新！\n用户: ${args.user_id}\n键: ${args.key}`
+          }]
+        };
+      }
+
+      case "get_preference": {
+        let sql = `SELECT key, value, updated_at FROM user_preferences WHERE user_id = $1`;
+        const params: any[] = [args.user_id];
+        
+        if (args.key) {
+          sql += ` AND key = $2`;
+          params.push(args.key);
+        }
+
+        const response = await axios.post(
+          `${API_BASE_URL}/api/v1/databases/${args.database_id}/sql`,
+          {
+            SQL: sql,
+            params: params
+          }
+        );
+        
+        const results = response.data.results || [];
+        if (results.length === 0) {
+          return { content: [{ type: "text", text: `没有找到用户 ${args.user_id} 的偏好设置。` }] };
+        }
+
+        let text = `👤 用户 ${args.user_id} 的偏好设置:\n\n`;
+        results.forEach((row: any) => {
+          text += `- [${row.key}]: ${JSON.stringify(row.value)}\n`;
+        });
+        return { content: [{ type: "text", text }] };
+      }
+
+      // --- 基础数据库工具 ---
       case "create_database": {
         const response = await axios.post(`${API_BASE_URL}/api/v1/databases`, {
           name: args.name,
