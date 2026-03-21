@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -46,7 +47,30 @@ type OllamaEmbeddingResponse struct {
 	Embedding []float32 `json:"embedding"`
 }
 
+func CheckOllamaAvailable() (bool, string) {
+	client := &http.Client{Timeout: 3 * time.Second}
+	resp, err := client.Get(ollamaEndpoint + "/api/tags")
+	if err != nil {
+		return false, err.Error()
+	}
+	defer resp.Body.Close()
+	return resp.StatusCode == http.StatusOK, ""
+}
+
 func GenerateEmbedding(c *gin.Context) {
+	if available, err := CheckOllamaAvailable(); !available {
+		c.JSON(http.StatusServiceUnavailable, gin.H{
+			"error": fmt.Sprintf(
+				"Embedding service (Ollama) is not available at %s. "+
+					"Please start Ollama with: ollama serve",
+				ollamaEndpoint,
+			),
+			"details": err,
+			"hint":    "Visit https://ollama.ai to install Ollama, then run: ollama serve",
+		})
+		return
+	}
+
 	var req EmbeddingRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -146,7 +170,7 @@ func CreateVectorTable(c *gin.Context) {
 			metadata JSONB DEFAULT '{}'::jsonb,
 			created_at TIMESTAMPTZ DEFAULT NOW()
 		)`, req.TableName, dimension)
-	
+
 	_, err = userPool.Exec(context.Background(), createTableSQL)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -154,10 +178,10 @@ func CreateVectorTable(c *gin.Context) {
 	}
 
 	createIndexSQL := fmt.Sprintf(`
-		CREATE INDEX IF NOT EXISTS %s_embedding_idx ON %s 
+		CREATE INDEX IF NOT EXISTS %s_embedding_idx ON %s
 		USING ivfflat (embedding vector_cosine_ops)
 		WITH (lists = 100)`, req.TableName, req.TableName)
-	
+
 	_, err = userPool.Exec(context.Background(), createIndexSQL)
 	if err != nil {
 		log.Printf("Warning: Failed to create vector index: %v", err)
@@ -194,6 +218,15 @@ func InsertVector(c *gin.Context) {
 	}
 
 	if len(req.Embedding) == 0 {
+		if available, err := CheckOllamaAvailable(); !available {
+			c.JSON(http.StatusServiceUnavailable, gin.H{
+				"error":   "Embedding service unavailable",
+				"details": fmt.Sprintf("Cannot connect to Ollama at %s: %v", ollamaEndpoint, err),
+				"hint":    "Visit https://ollama.ai to install Ollama, then run: ollama serve",
+			})
+			return
+		}
+
 		model := "nomic-embed-text"
 		ollamaReq := OllamaEmbeddingRequest{
 			Model:  model,
@@ -283,6 +316,15 @@ func SimilaritySearch(c *gin.Context) {
 
 	embedding := req.Embedding
 	if len(embedding) == 0 {
+		if available, err := CheckOllamaAvailable(); !available {
+			c.JSON(http.StatusServiceUnavailable, gin.H{
+				"error":   "Embedding service unavailable",
+				"details": fmt.Sprintf("Cannot connect to Ollama at %s: %v", ollamaEndpoint, err),
+				"hint":    "Visit https://ollama.ai to install Ollama, then run: ollama serve",
+			})
+			return
+		}
+
 		model := "nomic-embed-text"
 		ollamaReq := OllamaEmbeddingRequest{
 			Model:  model,

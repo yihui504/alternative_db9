@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 )
 
 type Branch struct {
@@ -18,6 +19,12 @@ type Branch struct {
 	SourceBranch string    `json:"source_branch"`
 	SnapshotPath string    `json:"snapshot_path"`
 	CreatedAt    time.Time `json:"created_at"`
+}
+
+type ListBranchesResponse struct {
+	Branches   []Branch `json:"branches"`
+	Total      int      `json:"total"`
+	DatabaseID string   `json:"database_id,omitempty"`
 }
 
 func CreateBranch(c *gin.Context) {
@@ -50,7 +57,6 @@ func CreateBranch(c *gin.Context) {
 	branchID := uuid.New().String()
 	newDBName := fmt.Sprintf("oc_br_%s_%d", strings.ReplaceAll(req.Name, "-", "_"), time.Now().Unix())
 
-	// 1. 终止源数据库的所有活动连接（除了当前连接）
 	_, err = dbPool.Exec(context.Background(),
 		fmt.Sprintf("SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '%s' AND pid <> pg_backend_pid()", sourceDBName))
 	if err != nil {
@@ -58,10 +64,8 @@ func CreateBranch(c *gin.Context) {
 		return
 	}
 
-	// 2. 关闭缓存的连接池（如果有）
 	closeCachedPool(sourceDBName)
 
-	// 3. 创建分支数据库
 	_, err = dbPool.Exec(context.Background(),
 		fmt.Sprintf("CREATE DATABASE %s WITH TEMPLATE %s", newDBName, sourceDBName))
 	if err != nil {
@@ -77,6 +81,13 @@ func CreateBranch(c *gin.Context) {
 		return
 	}
 
+	SendWebhook("branch.created", map[string]string{
+		"branch_id":     branchID,
+		"database_id":   req.DatabaseID,
+		"name":          req.Name,
+		"snapshot_path": newDBName,
+	})
+
 	c.JSON(http.StatusCreated, gin.H{
 		"id":            branchID,
 		"database_id":   req.DatabaseID,
@@ -88,14 +99,19 @@ func CreateBranch(c *gin.Context) {
 
 func ListBranches(c *gin.Context) {
 	databaseID := c.Query("database_id")
-	if databaseID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "database_id is required"})
-		return
+
+	var rows pgx.Rows
+	var err error
+
+	if databaseID != "" {
+		rows, err = dbPool.Query(context.Background(),
+			"SELECT id, database_id, name, source_branch, snapshot_path, created_at FROM oc_branches WHERE database_id = $1 ORDER BY created_at DESC",
+			databaseID)
+	} else {
+		rows, err = dbPool.Query(context.Background(),
+			"SELECT id, database_id, name, source_branch, snapshot_path, created_at FROM oc_branches ORDER BY created_at DESC")
 	}
 
-	rows, err := dbPool.Query(context.Background(),
-		"SELECT id, database_id, name, source_branch, snapshot_path, created_at FROM oc_branches WHERE database_id = $1",
-		databaseID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -112,19 +128,29 @@ func ListBranches(c *gin.Context) {
 		branches = append(branches, b)
 	}
 
-	c.JSON(http.StatusOK, branches)
+	response := ListBranchesResponse{
+		Branches: branches,
+		Total:    len(branches),
+	}
+	if databaseID != "" {
+		response.DatabaseID = databaseID
+	}
+
+	c.JSON(http.StatusOK, response)
 }
 
 func DeleteBranch(c *gin.Context) {
 	id := c.Param("id")
 
-	var snapshotPath string
+	var snapshotPath, databaseID, branchName string
 	err := dbPool.QueryRow(context.Background(),
-		"SELECT snapshot_path FROM oc_branches WHERE id = $1", id).Scan(&snapshotPath)
+		"SELECT snapshot_path, database_id, name FROM oc_branches WHERE id = $1", id).Scan(&snapshotPath, &databaseID, &branchName)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "branch not found"})
 		return
 	}
+
+	closeCachedPool(snapshotPath)
 
 	_, err = dbPool.Exec(context.Background(), fmt.Sprintf("DROP DATABASE IF EXISTS %s", snapshotPath))
 	if err != nil {
@@ -137,6 +163,13 @@ func DeleteBranch(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+
+	SendWebhook("branch.deleted", map[string]string{
+		"branch_id":     id,
+		"database_id":   databaseID,
+		"name":          branchName,
+		"snapshot_path": snapshotPath,
+	})
 
 	c.JSON(http.StatusOK, gin.H{"message": "branch deleted"})
 }

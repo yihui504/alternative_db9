@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
 	"github.com/openclaw-db9/api/internal/config"
+	"github.com/openclaw-db9/api/internal/dashboard"
 	"github.com/openclaw-db9/api/internal/handlers"
 	"github.com/openclaw-db9/api/internal/middleware"
 )
@@ -39,6 +40,17 @@ func main() {
 	}
 
 	handlers.SetDBPool(dbPool)
+	handlers.SetConfig(cfg)
+	handlers.StartPoolCleaner()
+	handlers.StartTransactionCleaner()
+	log.Println("Connection pool cleaner started")
+	log.Println("Transaction cleaner started")
+
+	if available, err := handlers.CheckOllamaAvailable(); available {
+		log.Println("Ollama is available")
+	} else {
+		log.Printf("Warning: Ollama is not available: %v. Embedding features will not work.", err)
+	}
 
 	if cfg.Environment == "production" {
 		gin.SetMode(gin.ReleaseMode)
@@ -49,7 +61,10 @@ func main() {
 	router.Use(middleware.CORS())
 	router.Use(middleware.Logger())
 
+	dashboard.Register(router)
+
 	router.GET("/health", handlers.HealthCheck)
+	router.GET("/api/docs", handlers.GetAPIDocs)
 
 	v1 := router.Group("/api/v1")
 	{
@@ -67,7 +82,17 @@ func main() {
 			databases.GET("/:id", handlers.GetDatabase)
 			databases.DELETE("/:id", handlers.DeleteDatabase)
 			databases.POST("/:id/sql", handlers.ExecuteSQL)
+			databases.POST("/:id/query", handlers.ParameterizedQuery)
 			databases.GET("/:id/connect", handlers.GetConnectionInfo)
+
+			txGroup := databases.Group("/:id/transactions")
+			{
+				txGroup.POST("", handlers.BeginTransaction)
+				txGroup.GET("/:tid", handlers.GetTransaction)
+				txGroup.PUT("/:tid/sql", handlers.ExecuteInTransaction)
+				txGroup.POST("/:tid/commit", handlers.CommitTransaction)
+				txGroup.POST("/:tid/rollback", handlers.RollbackTransaction)
+			}
 		}
 
 		files := v1.Group("/files")
@@ -110,6 +135,13 @@ func main() {
 			backups.POST("/restore", handlers.RestoreBackup)
 			backups.DELETE("/:id", handlers.DeleteBackup)
 			backups.GET("/:id/download", handlers.DownloadBackup)
+		}
+
+		webhooks := v1.Group("/webhooks")
+		{
+			webhooks.POST("", handlers.RegisterWebhook)
+			webhooks.GET("", handlers.ListWebhooks)
+			webhooks.DELETE("/:id", handlers.DeleteWebhook)
 		}
 	}
 
