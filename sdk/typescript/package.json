@@ -1,0 +1,30 @@
+{
+  "name": "oc-db9",
+  "version": "0.1.0",
+  "description": "TypeScript SDK for OpenClaw-db9 - Postgres but for agents",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "jest",
+    "lint": "eslint src/**/*.ts"
+  },
+  "keywords": [
+    "database",
+    "postgres",
+    "agent",
+    "ai",
+    "vector",
+    "embedding"
+  ],
+  "author": "OpenClaw",
+  "license": "MIT",
+  "dependencies": {
+    "pg": "^8.11.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/pg": "^8.10.0",
+    "typescript": "^5.0.0"
+  }
+}
