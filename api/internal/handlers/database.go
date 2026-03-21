@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -28,6 +29,14 @@ type CreateDatabaseRequest struct {
 
 var dbPool *pgxpool.Pool
 var dbBaseURL string
+
+// 连接池缓存，用于复用用户数据库连接
+var poolCache sync.Map
+
+type cachedPool struct {
+	pool *pgxpool.Pool
+	last time.Time
+}
 
 func SetDBPool(pool *pgxpool.Pool) {
 	dbPool = pool
@@ -192,13 +201,36 @@ func ExecuteSQL(c *gin.Context) {
 		return
 	}
 	connString := dbBaseURL[:lastSlash+1] + pgDBName
-	userPool, err := pgxpool.New(context.Background(), connString)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+
+	// 使用连接池缓存
+	userPool := getCachedPool(connString)
+	if userPool == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get connection pool"})
 		return
 	}
-	defer userPool.Close()
 
+	var results []map[string]interface{}
+
+	// 检查是否包含多语句（分号分隔）
+	hasMultipleStatements := containsMultipleStatements(req.SQL)
+
+	if hasMultipleStatements {
+		// 多语句使用 Exec()
+		_, err = userPool.Exec(context.Background(), req.SQL)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		// 多语句执行成功，返回影响行数信息
+		c.JSON(http.StatusOK, gin.H{
+			"results": nil,
+			"message": "SQL executed successfully",
+			"type":    "exec",
+		})
+		return
+	}
+
+	// 单语句使用 Query()
 	rows, err := userPool.Query(context.Background(), req.SQL)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -206,7 +238,6 @@ func ExecuteSQL(c *gin.Context) {
 	}
 	defer rows.Close()
 
-	var results []map[string]interface{}
 	for rows.Next() {
 		values, err := rows.Values()
 		if err != nil {
@@ -222,7 +253,45 @@ func ExecuteSQL(c *gin.Context) {
 		results = append(results, row)
 	}
 
+	if err := rows.Err(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
 	c.JSON(http.StatusOK, gin.H{"results": results})
+}
+
+// getCachedPool 获取或创建缓存的连接池
+func getCachedPool(connString string) *pgxpool.Pool {
+	// 尝试从缓存获取
+	if cached, ok := poolCache.Load(connString); ok {
+		cp := cached.(*cachedPool)
+		cp.last = time.Now()
+		return cp.pool
+	}
+
+	// 创建新连接池
+	pool, err := pgxpool.New(context.Background(), connString)
+	if err != nil {
+		return nil
+	}
+
+	// 存入缓存
+	poolCache.Store(connString, &cachedPool{
+		pool: pool,
+		last: time.Now(),
+	})
+
+	return pool
+}
+
+// CloseAllPools 关闭所有缓存的连接池
+func CloseAllPools() {
+	poolCache.Range(func(key, value interface{}) bool {
+		cp := value.(*cachedPool)
+		cp.pool.Close()
+		return true
+	})
 }
 
 func GetConnectionInfo(c *gin.Context) {
@@ -243,4 +312,65 @@ func GetConnectionInfo(c *gin.Context) {
 		"user":              "postgres",
 		"connection_string": fmt.Sprintf("postgresql://postgres:postgres@localhost:5432/%s", pgDBName),
 	})
+}
+
+// containsMultipleStatements 检查 SQL 是否包含多语句（分号分隔）
+// 忽略字符串字面量和注释中的分号
+func containsMultipleStatements(sql string) bool {
+	// 移除注释
+	sql = removeComments(sql)
+
+	// 简单检查：如果包含分号且分号不在字符串字面量中
+	inString := false
+
+	for i, ch := range sql {
+		if ch == '\'' && (i == 0 || sql[i-1] != '\\') {
+			inString = !inString
+		}
+		if ch == ';' && !inString {
+			return true
+		}
+	}
+
+	return false
+}
+
+// removeComments 移除 SQL 中的注释
+func removeComments(sql string) string {
+	var result strings.Builder
+	inBlockComment := false
+	inLineComment := false
+
+	for i := 0; i < len(sql); i++ {
+		if i+1 < len(sql) {
+			// 块注释 /* */
+			if sql[i] == '/' && sql[i+1] == '*' {
+				inBlockComment = true
+				i++
+				continue
+			}
+			if sql[i] == '*' && sql[i+1] == '/' {
+				inBlockComment = false
+				i++
+				continue
+			}
+		}
+
+		// 行注释 --
+		if i+1 < len(sql) && sql[i] == '-' && sql[i+1] == '-' {
+			inLineComment = true
+			i++
+			continue
+		}
+
+		if sql[i] == '\n' {
+			inLineComment = false
+		}
+
+		if !inBlockComment && !inLineComment {
+			result.WriteByte(sql[i])
+		}
+	}
+
+	return result.String()
 }

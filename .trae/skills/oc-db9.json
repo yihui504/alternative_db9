@@ -1,0 +1,292 @@
+{
+  "name": "oc-db9",
+  "version": "1.0.0",
+  "description": "OpenClaw-db9 数据库服务 - 为 AI Agent 提供即时数据库创建、向量搜索、文件存储等功能",
+  "author": "OpenClaw-db9 Team",
+  "license": "MIT",
+  
+  "endpoint": {
+    "base_url": "http://localhost:8080",
+    "api_version": "v1",
+    "health_check": "/health"
+  },
+  
+  "capabilities": {
+    "database": {
+      "description": "即时创建和管理 PostgreSQL 数据库",
+      "operations": [
+        {
+          "name": "create_database",
+          "description": "创建新数据库",
+          "method": "POST",
+          "path": "/api/v1/databases",
+          "parameters": {
+            "name": {
+              "type": "string",
+              "required": true,
+              "description": "数据库名称"
+            },
+            "description": {
+              "type": "string",
+              "required": false,
+              "description": "数据库描述"
+            }
+          },
+          "returns": {
+            "id": "数据库唯一标识符",
+            "name": "数据库名称",
+            "postgres_db_name": "PostgreSQL 数据库名",
+            "connection_string": "连接字符串"
+          }
+        },
+        {
+          "name": "list_databases",
+          "description": "列出所有数据库",
+          "method": "GET",
+          "path": "/api/v1/databases",
+          "returns": "数据库列表"
+        },
+        {
+          "name": "execute_sql",
+          "description": "在指定数据库执行 SQL",
+          "method": "POST",
+          "path": "/api/v1/databases/{id}/sql",
+          "parameters": {
+            "SQL": {
+              "type": "string",
+              "required": true,
+              "description": "SQL 语句"
+            },
+            "params": {
+              "type": "array",
+              "required": false,
+              "description": "参数化查询参数"
+            }
+          }
+        },
+        {
+          "name": "get_connection",
+          "description": "获取数据库连接信息",
+          "method": "GET",
+          "path": "/api/v1/databases/{id}/connect"
+        }
+      ]
+    },
+    
+    "vector_search": {
+      "description": "向量嵌入存储和相似性搜索",
+      "operations": [
+        {
+          "name": "create_vector_table",
+          "description": "创建向量存储表",
+          "method": "POST",
+          "path": "/api/v1/embeddings/tables",
+          "parameters": {
+            "database_id": "数据库ID",
+            "table_name": "表名",
+            "dimensions": "向量维度(默认768)"
+          }
+        },
+        {
+          "name": "insert_vector",
+          "description": "插入文本并自动生成向量",
+          "method": "POST",
+          "path": "/api/v1/embeddings/insert",
+          "parameters": {
+            "database_id": "数据库ID",
+            "table_name": "表名",
+            "content": "文本内容",
+            "metadata": "可选元数据"
+          }
+        },
+        {
+          "name": "search_similar",
+          "description": "相似性搜索",
+          "method": "POST",
+          "path": "/api/v1/embeddings/search",
+          "parameters": {
+            "database_id": "数据库ID",
+            "table_name": "表名",
+            "query": "查询文本",
+            "limit": "返回结果数量"
+          }
+        }
+      ]
+    },
+    
+    "file_storage": {
+      "description": "S3兼容的文件存储",
+      "operations": [
+        {
+          "name": "upload_file",
+          "description": "上传文件",
+          "method": "POST",
+          "path": "/api/v1/files/upload",
+          "content_type": "multipart/form-data"
+        },
+        {
+          "name": "list_files",
+          "description": "列出文件",
+          "method": "GET",
+          "path": "/api/v1/files"
+        },
+        {
+          "name": "download_file",
+          "description": "下载文件",
+          "method": "GET",
+          "path": "/api/v1/files/{id}"
+        }
+      ]
+    },
+    
+    "branching": {
+      "description": "数据库分支管理",
+      "operations": [
+        {
+          "name": "create_branch",
+          "description": "从现有数据库创建分支",
+          "method": "POST",
+          "path": "/api/v1/branches",
+          "parameters": {
+            "name": "分支名称",
+            "source_database_id": "源数据库ID"
+          }
+        },
+        {
+          "name": "list_branches",
+          "description": "列出分支",
+          "method": "GET",
+          "path": "/api/v1/branches"
+        }
+      ]
+    },
+    
+    "cron": {
+      "description": "定时任务调度",
+      "operations": [
+        {
+          "name": "create_cron_job",
+          "description": "创建定时任务",
+          "method": "POST",
+          "path": "/api/v1/cron",
+          "parameters": {
+            "name": "任务名称",
+            "schedule": "Cron表达式(秒 分 时 日 月 周)",
+            "sql": "执行的SQL",
+            "database_id": "目标数据库ID"
+          }
+        }
+      ]
+    },
+    
+    "backup": {
+      "description": "备份与恢复",
+      "operations": [
+        {
+          "name": "create_backup",
+          "description": "创建备份",
+          "method": "POST",
+          "path": "/api/v1/backups"
+        },
+        {
+          "name": "restore_backup",
+          "description": "恢复备份",
+          "method": "POST",
+          "path": "/api/v1/backups/restore"
+        }
+      ]
+    },
+    
+    "type_generation": {
+      "description": "自动生成类型定义",
+      "operations": [
+        {
+          "name": "generate_typescript",
+          "description": "生成 TypeScript 类型",
+          "cli_command": "oc-db9 gen types --db {database_id} --lang typescript"
+        },
+        {
+          "name": "generate_python",
+          "description": "生成 Python 类型",
+          "cli_command": "oc-db9 gen types --db {database_id} --lang python"
+        },
+        {
+          "name": "generate_go",
+          "description": "生成 Go 类型",
+          "cli_command": "oc-db9 gen types --db {database_id} --lang go"
+        }
+      ]
+    }
+  },
+  
+  "prompts": {
+    "system_prompt": "你是一个数据库助手，可以通过 OpenClaw-db9 API 帮助用户管理数据库。你可以创建数据库、执行SQL、管理文件、进行向量搜索等。",
+    
+    "database_creation": "当用户需要创建数据库时，调用 create_database 操作。数据库名称只能包含字母、数字和下划线。",
+    
+    "sql_execution": "执行 SQL 时，使用参数化查询防止 SQL 注入。对于 SELECT 查询返回结果，对于 INSERT/UPDATE/DELETE 返回影响的行数。",
+    
+    "vector_search": "向量搜索适用于语义搜索场景。用户提供一个查询文本，系统自动生成 embedding 并找到最相似的记录。",
+    
+    "file_operations": "文件存储使用 MinIO，与数据库记录可以关联。上传文件后返回 file_id，可用于后续下载或关联到数据库记录。",
+    
+    "branching": "数据库分支适用于开发新功能时复制生产数据。创建分支后得到一个独立的数据库副本，可以安全地进行修改。"
+  },
+  
+  "examples": [
+    {
+      "description": "创建博客数据库并添加文章",
+      "conversation": [
+        {
+          "user": "帮我创建一个博客数据库",
+          "assistant": "调用 create_database(name='blog')"
+        },
+        {
+          "user": "创建文章表，包含标题、内容和创建时间",
+          "assistant": "调用 execute_sql(SQL='CREATE TABLE posts (id SERIAL PRIMARY KEY, title TEXT, content TEXT, created_at TIMESTAMP DEFAULT NOW())')"
+        },
+        {
+          "user": "添加一篇示例文章",
+          "assistant": "调用 execute_sql(SQL='INSERT INTO posts (title, content) VALUES ($1, $2)', params=['Hello World', '这是我的第一篇文章'])"
+        }
+      ]
+    },
+    {
+      "description": "构建知识库问答系统",
+      "conversation": [
+        {
+          "user": "创建一个知识库数据库",
+          "assistant": "调用 create_database(name='knowledge_base')"
+        },
+        {
+          "user": "创建向量表存储文档",
+          "assistant": "调用 create_vector_table(table_name='documents', dimensions=768)"
+        },
+        {
+          "user": "添加一些文档",
+          "assistant": "调用 insert_vector(content='OpenClaw-db9 是一个自托管数据库服务...')"
+        },
+        {
+          "user": "搜索关于数据库的内容",
+          "assistant": "调用 search_similar(query='数据库', limit=5)"
+        }
+      ]
+    }
+  ],
+  
+  "best_practices": [
+    "每个项目使用独立的数据库",
+    "开发新功能前创建数据库分支",
+    "定期创建备份",
+    "使用参数化查询防止 SQL 注入",
+    "向量搜索时设置合理的 limit 参数",
+    "大文件存储使用文件系统，数据库只存元数据"
+  ],
+  
+  "troubleshooting": {
+    "connection_refused": "检查 oc-db9 服务是否运行：docker-compose ps",
+    "database_not_found": "确认数据库 ID 正确，使用 list_databases 查看",
+    "sql_error": "检查 SQL 语法，确认表和列存在",
+    "embedding_failed": "检查 Ollama 服务是否运行并拉取了模型"
+  }
+}

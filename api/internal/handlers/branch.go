@@ -128,3 +128,18 @@ func DeleteBranch(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "branch deleted"})
 }
+
+func GetBranch(c *gin.Context) {
+	id := c.Param("id")
+
+	var branch Branch
+	err := dbPool.QueryRow(context.Background(),
+		"SELECT id, database_id, name, source_branch, snapshot_path, created_at FROM oc_branches WHERE id = $1",
+		id).Scan(&branch.ID, &branch.DatabaseID, &branch.Name, &branch.SourceBranch, &branch.SnapshotPath, &branch.CreatedAt)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "branch not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, branch)
+}

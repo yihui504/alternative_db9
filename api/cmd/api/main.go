@@ -83,6 +83,7 @@ func main() {
 		{
 			branches.POST("", handlers.CreateBranch)
 			branches.GET("", handlers.ListBranches)
+			branches.GET("/:id", handlers.GetBranch)
 			branches.DELETE("/:id", handlers.DeleteBranch)
 		}
 

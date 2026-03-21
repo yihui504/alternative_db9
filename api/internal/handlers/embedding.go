@@ -68,7 +68,11 @@ func GenerateEmbedding(c *gin.Context) {
 
 	resp, err := http.Post(url, "application/json", bytes.NewBuffer(body))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Ollama connection failed: %v", err)})
+		c.JSON(http.StatusServiceUnavailable, gin.H{
+			"error":   "Embedding service unavailable",
+			"details": fmt.Sprintf("Cannot connect to Ollama at %s. Please ensure Ollama is running or start with --profile ollama", ollamaEndpoint),
+			"hint":    "Visit https://ollama.ai to install Ollama, then run: ollama serve",
+		})
 		return
 	}
 	defer resp.Body.Close()
@@ -201,7 +205,11 @@ func InsertVector(c *gin.Context) {
 
 		resp, err := http.Post(url, "application/json", bytes.NewBuffer(body))
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Ollama connection failed: %v", err)})
+			c.JSON(http.StatusServiceUnavailable, gin.H{
+				"error":   "Embedding service unavailable",
+				"details": fmt.Sprintf("Cannot connect to Ollama at %s. Please ensure Ollama is running or start with --profile ollama", ollamaEndpoint),
+				"hint":    "Visit https://ollama.ai to install Ollama, then run: ollama serve",
+			})
 			return
 		}
 		defer resp.Body.Close()
@@ -286,7 +294,11 @@ func SimilaritySearch(c *gin.Context) {
 
 		resp, err := http.Post(url, "application/json", bytes.NewBuffer(body))
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Ollama connection failed: %v", err)})
+			c.JSON(http.StatusServiceUnavailable, gin.H{
+				"error":   "Embedding service unavailable",
+				"details": fmt.Sprintf("Cannot connect to Ollama at %s. Please ensure Ollama is running or start with --profile ollama", ollamaEndpoint),
+				"hint":    "Visit https://ollama.ai to install Ollama, then run: ollama serve",
+			})
 			return
 		}
 		defer resp.Body.Close()
