@@ -318,6 +318,45 @@ curl http://localhost:8080/api/v1/databases/templates
 5. **更新配置**: 将连接字符串写入 OpenClaw 配置
 6. **验证连接**: 执行测试查询确认可用
 
+## 最佳实践
+
+### 不要生成脚本
+
+**❌ 错误做法：** 生成一堆 shell 脚本、Python 脚本
+**✅ 正确做法：** 直接调用 HTTP API
+
+oc-db9 是 API-first 设计，所有操作都应该通过 HTTP API 完成，不需要生成脚本。
+
+### 集成原则
+
+1. **直接调用 API** - 不需要包装脚本
+2. **复用连接** - 获取 connection_string 后直接使用
+3. **使用模板** - 优先用 `/quick-setup` 而不是手动建表
+4. **一行命令** - curl 调用足够简单，无需脚本
+
+### 典型调用模式
+
+```bash
+# 创建数据库（一行命令）
+curl -X POST http://localhost:8080/api/v1/databases/quick-setup \
+  -H "Content-Type: application/json" \
+  -d '{"template":"ai-memory","name":"my-db"}'
+
+# 执行 SQL（一行命令）
+curl -X POST http://localhost:8080/api/v1/databases/${DB_ID}/sql \
+  -H "Content-Type: application/json" \
+  -d '{"sql":"SELECT * FROM users LIMIT 10"}'
+```
+
+### 常见错误
+
+| 错误 | 原因 | 正确做法 |
+|------|------|----------|
+| 生成 install.sh | 不需要 | 直接 `docker-compose up -d` |
+| 生成 init_db.py | 不需要 | 用 `/quick-setup` API |
+| 生成 backup.sh | 不需要 | 用 `/backups` API |
+| 生成 wrapper 脚本 | 不需要 | 直接调用 HTTP API |
+
 ## 与 db9.ai 的差异
 
 | 功能 | db9.ai | OpenClaw-db9 |
