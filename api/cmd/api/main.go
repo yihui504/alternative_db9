@@ -79,6 +79,8 @@ func main() {
 		{
 			databases.POST("", handlers.CreateDatabase)
 			databases.GET("", handlers.ListDatabases)
+			databases.GET("/templates", handlers.ListTemplates)
+			databases.POST("/quick-setup", handlers.QuickSetup)
 			databases.GET("/:id", handlers.GetDatabase)
 			databases.DELETE("/:id", handlers.DeleteDatabase)
 			databases.POST("/:id/sql", handlers.ExecuteSQL)

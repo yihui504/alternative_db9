@@ -604,3 +604,111 @@ func removeComments(sql string) string {
 
 	return result.String()
 }
+
+func createDatabaseWithTemplate(template config.DatabaseTemplate, options map[string]interface{}) (string, string, error) {
+	accountID, err := getOrCreateDefaultAccount(context.Background())
+	if err != nil {
+		return "", "", err
+	}
+
+	dbID := uuid.New()
+	pgDBName := fmt.Sprintf("oc_%s", dbID.String()[:8])
+
+	_, err = dbPool.Exec(context.Background(),
+		"INSERT INTO oc_databases (id, account_id, name, postgres_db_name) VALUES ($1, $2, $3, $4)",
+		dbID, accountID, pgDBName, pgDBName)
+	if err != nil {
+		return "", "", err
+	}
+
+	_, err = dbPool.Exec(context.Background(), fmt.Sprintf("CREATE DATABASE %s", pgDBName))
+	if err != nil {
+		return "", "", err
+	}
+
+	if err := createDefaultExtensions(pgDBName); err != nil {
+		fmt.Printf("Warning: failed to create extensions: %v\n", err)
+	}
+
+	if err := initTemplateTables(pgDBName, template); err != nil {
+		fmt.Printf("Warning: failed to init template tables: %v\n", err)
+	}
+
+	return dbID.String(), pgDBName, nil
+}
+
+func initTemplateTables(pgDBName string, template config.DatabaseTemplate) error {
+	lastSlash := strings.LastIndex(dbBaseURL, "/")
+	if lastSlash == -1 {
+		return fmt.Errorf("invalid dbBaseURL")
+	}
+	connString := dbBaseURL[:lastSlash+1] + pgDBName
+
+	pool, err := pgxpool.New(context.Background(), connString)
+	if err != nil {
+		return err
+	}
+	defer pool.Close()
+
+	for _, table := range template.Tables {
+		columns := make([]string, len(table.Columns))
+		for i, col := range table.Columns {
+			columns[i] = fmt.Sprintf("%s %s", col.Name, col.Type)
+		}
+		createSQL := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (%s)", table.Name, joinStrings(columns, ", "))
+		if _, err := pool.Exec(context.Background(), createSQL); err != nil {
+			return fmt.Errorf("failed to create table %s: %w", table.Name, err)
+		}
+	}
+
+	for _, idx := range template.Indexes {
+		var idxSQL string
+		switch idx.Type {
+		case "btree", "gin":
+			idxSQL = fmt.Sprintf("CREATE INDEX IF NOT EXISTS %s ON %s USING %s (%s)", idx.Name, idx.Column, idx.Type, idx.Column)
+		case "ivfflat":
+			idxSQL = fmt.Sprintf("CREATE INDEX IF NOT EXISTS %s ON %s USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100)", idx.Name, idx.Column)
+		default:
+			idxSQL = fmt.Sprintf("CREATE INDEX IF NOT EXISTS %s ON %s (%s)", idx.Name, idx.Column, idx.Column)
+		}
+		if _, err := pool.Exec(context.Background(), idxSQL); err != nil {
+			fmt.Printf("Warning: failed to create index %s: %v\n", idx.Name, err)
+		}
+	}
+
+	return nil
+}
+
+func joinStrings(strs []string, sep string) string {
+	if len(strs) == 0 {
+		return ""
+	}
+	result := strs[0]
+	for i := 1; i < len(strs); i++ {
+		result += sep + strs[i]
+	}
+	return result
+}
+
+func queryAllRows(pool *pgxpool.Pool, query string, args ...interface{}) ([]map[string]interface{}, error) {
+	rows, err := pool.Query(context.Background(), query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var results []map[string]interface{}
+	for rows.Next() {
+		values, err := rows.Values()
+		if err != nil {
+			return nil, err
+		}
+		fields := rows.FieldDescriptions()
+		row := make(map[string]interface{})
+		for i, field := range fields {
+			row[string(field.Name)] = values[i]
+		}
+		results = append(results, row)
+	}
+	return results, rows.Err()
+}

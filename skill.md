@@ -208,6 +208,8 @@ curl http://localhost:8080/api/v1/monitor/health
 |------|------|------|
 | POST | /api/v1/databases | 创建数据库 |
 | GET | /api/v1/databases | 列出数据库 |
+| POST | /api/v1/databases/quick-setup | 快速配置（模板） |
+| GET | /api/v1/databases/templates | 列出可用模板 |
 | GET | /api/v1/databases/:id | 获取数据库详情 |
 | DELETE | /api/v1/databases/:id | 删除数据库 |
 | POST | /api/v1/databases/:id/sql | 执行 SQL |
@@ -265,6 +267,56 @@ curl http://localhost:8080/api/v1/monitor/health
 | GET | /api/v1/monitor/system | 系统状态 |
 | GET | /api/v1/monitor/stats | 数据库统计 |
 | GET | /api/v1/monitor/health | 健康检查 |
+
+### 快速配置
+
+OpenClaw 可以通过 Quick-Setup API 自行配置 oc-db9 作为记忆存储层。
+
+#### 支持的模板
+
+| 模板 | 用途 | 主要表 |
+|------|------|--------|
+| `ai-memory` | AI Agent 跨对话记忆 | user_preferences, conversation_history, knowledge_base |
+| `workflow-state` | 工作流状态管理 | workflow_instances, workflow_events |
+| `knowledge-base` | 企业知识库 | documents, tags |
+
+#### 一键创建记忆数据库
+
+```bash
+curl -X POST http://localhost:8080/api/v1/databases/quick-setup \
+  -H "Content-Type: application/json" \
+  -d '{
+    "template": "ai-memory",
+    "name": "my-agent-memory"
+  }'
+```
+
+响应：
+```json
+{
+  "database_id": "xxx",
+  "database_name": "oc_xxx",
+  "connection_string": "postgresql://postgres:postgres@localhost:5432/oc_xxx",
+  "dashboard_url": "http://localhost:8080/",
+  "tables_created": ["user_preferences", "conversation_history", "knowledge_base"],
+  "vector_enabled": true
+}
+```
+
+#### 查看可用模板
+
+```bash
+curl http://localhost:8080/api/v1/databases/templates
+```
+
+#### OpenClaw 自动配置流程
+
+1. **检测需求**: OpenClaw 发现需要持久化存储时
+2. **选择模板**: 根据用途选择 `ai-memory` 模板
+3. **调用 API**: `POST /api/v1/databases/quick-setup`
+4. **获取连接**: 收到 connection_string
+5. **更新配置**: 将连接字符串写入 OpenClaw 配置
+6. **验证连接**: 执行测试查询确认可用
 
 ## 与 db9.ai 的差异
 
