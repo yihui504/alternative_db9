@@ -497,7 +497,6 @@ func createDefaultExtensions(dbName string) error {
 	extensions := []string{
 		"CREATE EXTENSION IF NOT EXISTS vector",
 		"CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\"",
-		"CREATE EXTENSION IF NOT EXISTS http",
 	}
 
 	for _, ext := range extensions {

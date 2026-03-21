@@ -347,7 +347,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const response = await axios.post(
           `${API_BASE_URL}/api/v1/databases/${args.database_id}/sql`,
           {
-            SQL: sql,
+            sql: sql,
             params: [args.user_id, args.key, JSON.stringify(args.value)]
           }
         );
@@ -371,7 +371,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const response = await axios.post(
           `${API_BASE_URL}/api/v1/databases/${args.database_id}/sql`,
           {
-            SQL: sql,
+            sql: sql,
             params: params
           }
         );
@@ -420,7 +420,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const response = await axios.post(
           `${API_BASE_URL}/api/v1/databases/${args.database_id}/sql`,
           {
-            SQL: args.sql,
+            sql: args.sql,
             params: args.params || []
           }
         );
