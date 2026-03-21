@@ -99,6 +99,12 @@ func CreateDatabase(c *gin.Context) {
 		return
 	}
 
+	// 自动在新数据库中创建常用扩展
+	if err := createDefaultExtensions(pgDBName); err != nil {
+		// 扩展创建失败不影响数据库创建成功，记录日志即可
+		fmt.Printf("Warning: failed to create extensions in %s: %v\n", pgDBName, err)
+	}
+
 	c.JSON(http.StatusCreated, gin.H{
 		"id":               dbID.String(),
 		"name":             req.Name,
@@ -283,6 +289,52 @@ func getCachedPool(connString string) *pgxpool.Pool {
 	})
 
 	return pool
+}
+
+// createDefaultExtensions 在新数据库中创建默认扩展
+func createDefaultExtensions(dbName string) error {
+	lastSlash := strings.LastIndex(dbBaseURL, "/")
+	if lastSlash == -1 {
+		return fmt.Errorf("invalid dbBaseURL")
+	}
+	connString := dbBaseURL[:lastSlash+1] + dbName
+
+	pool, err := pgxpool.New(context.Background(), connString)
+	if err != nil {
+		return err
+	}
+	defer pool.Close()
+
+	// 创建常用扩展
+	extensions := []string{
+		"CREATE EXTENSION IF NOT EXISTS vector",
+		"CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\"",
+		"CREATE EXTENSION IF NOT EXISTS http",
+	}
+
+	for _, ext := range extensions {
+		if _, err := pool.Exec(context.Background(), ext); err != nil {
+			return fmt.Errorf("failed to create extension: %s, error: %w", ext, err)
+		}
+	}
+
+	return nil
+}
+
+// closeCachedPool 关闭指定数据库的缓存连接池
+func closeCachedPool(dbName string) {
+	// 构建连接字符串（需要匹配 getCachedPool 中的格式）
+	lastSlash := strings.LastIndex(dbBaseURL, "/")
+	if lastSlash == -1 {
+		return
+	}
+	connString := dbBaseURL[:lastSlash+1] + dbName
+
+	if cached, ok := poolCache.Load(connString); ok {
+		cp := cached.(*cachedPool)
+		cp.pool.Close()
+		poolCache.Delete(connString)
+	}
 }
 
 // CloseAllPools 关闭所有缓存的连接池

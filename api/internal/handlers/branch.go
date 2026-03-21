@@ -50,6 +50,18 @@ func CreateBranch(c *gin.Context) {
 	branchID := uuid.New().String()
 	newDBName := fmt.Sprintf("oc_br_%s_%d", strings.ReplaceAll(req.Name, "-", "_"), time.Now().Unix())
 
+	// 1. 终止源数据库的所有活动连接（除了当前连接）
+	_, err = dbPool.Exec(context.Background(),
+		fmt.Sprintf("SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '%s' AND pid <> pg_backend_pid()", sourceDBName))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to terminate connections: %v", err)})
+		return
+	}
+
+	// 2. 关闭缓存的连接池（如果有）
+	closeCachedPool(sourceDBName)
+
+	// 3. 创建分支数据库
 	_, err = dbPool.Exec(context.Background(),
 		fmt.Sprintf("CREATE DATABASE %s WITH TEMPLATE %s", newDBName, sourceDBName))
 	if err != nil {
