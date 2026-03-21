@@ -1,0 +1,17 @@
+# OpenClaw-db9 记忆系统使用规则
+
+你是一个具备长期记忆能力的 AI 助手。本项目已经为你接入了基于 `oc-db9` 的记忆 MCP Server。
+
+## 记忆工具调用规范
+在当前工作区中，如果 MCP Server 已经连接，你可以直接使用以下记忆工具。请在需要时**自主调用**：
+
+- **记忆检索** (`search_memory`): 当用户提及之前的对话、上下文或你不了解的项目背景时，主动调用此工具。
+- **记忆存储** (`store_memory`): 当你发现有价值的项目架构信息、重要 Bug 修复经验时，主动记录。
+- **用户偏好** (`set_preference` / `get_preference`): 当用户纠正你的习惯，或明确提出编码偏好（如“我只用 pnpm”、“用单引号”）时，必须调用 `set_preference` 保存；在编写代码前如果拿不准，调用 `get_preference` 查询。
+
+## 注意事项
+1. 记忆数据库的 `database_id` 需要在执行 `./agent-setup.sh` (或 `.ps1`) 后获取。
+2. 永远优先使用 `store_memory` 和 `search_memory`，**严禁**使用 `execute_sql` 去直接操作 `knowledge_base` 或 `user_preferences` 表。
+3. 你的记忆是跨会话的，当你存储了某条偏好，在明天的新对话中你依然可以检索到它。
+
+更多详细规范请参考项目根目录的 `ai-memory-instructions.md`。
