@@ -55,11 +55,14 @@ if (-not $db_id) {
 
 Write-Host "✅ Database provisioned successfully! ID: $db_id"
 
-Write-Host "⚙️  [4/4] Building MCP Server..."
+Write-Host "⚙️  [4/5] Building MCP Server..."
 Set-Location mcp-server
 npm install
 npm run build
 Set-Location ..
+
+Write-Host "🛠️  [5/5] Building oc-db9 CLI..."
+go build -o oc-db9.exe ./cmd/oc-db9
 
 Write-Host "==========================================================="
 Write-Host "🎉 Setup Complete!"
@@ -67,7 +70,7 @@ Write-Host "Your AI Long-Term Memory Database is ready."
 Write-Host "Database ID: $db_id"
 Write-Host "==========================================================="
 Write-Host "🤖 AGENT INSTRUCTIONS:"
-Write-Host "1. Read the instructions in 'ai-memory-instructions.md' or '.cursorrules'."
-Write-Host "2. When calling MCP tools (store_memory, search_memory, etc.), use the Database ID: $db_id"
+Write-Host "1. Read the instructions in 'SKILL.md' or '.cursorrules'."
+Write-Host "2. You can use the MCP tools OR use the newly built CLI: .\oc-db9.exe memory store --db $db_id --content `"...`""
 Write-Host "3. You are now equipped with Long-Term Memory!"
 Write-Host "==========================================================="

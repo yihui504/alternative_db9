@@ -38,9 +38,12 @@ fi
 
 echo "✅ Database provisioned successfully! ID: $DB_ID"
 
-echo "⚙️  [4/4] Building MCP Server..."
+echo "⚙️  [4/5] Building MCP Server..."
 cd mcp-server && npm install && npm run build
 cd ..
+
+echo "🛠️  [5/5] Building oc-db9 CLI..."
+go build -o oc-db9 ./cmd/oc-db9
 
 echo "==========================================================="
 echo "🎉 Setup Complete!"
@@ -48,7 +51,7 @@ echo "Your AI Long-Term Memory Database is ready."
 echo "Database ID: $DB_ID"
 echo "==========================================================="
 echo "🤖 AGENT INSTRUCTIONS:"
-echo "1. Read the instructions in 'ai-memory-instructions.md' or '.cursorrules'."
-echo "2. When calling MCP tools (store_memory, search_memory, etc.), use the Database ID: $DB_ID"
+echo "1. Read the instructions in 'SKILL.md' or '.cursorrules'."
+echo "2. You can use the MCP tools OR use the newly built CLI: ./oc-db9 memory store --db $DB_ID --content \"...\""
 echo "3. You are now equipped with Long-Term Memory!"
 echo "==========================================================="

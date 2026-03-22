@@ -340,7 +340,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case "set_preference": {
         const sql = `
           INSERT INTO user_preferences (user_id, key, value)
-          VALUES ($1, $2, $3)
+          VALUES ($1, $2, $3::jsonb)
           ON CONFLICT (user_id, key) DO UPDATE 
           SET value = EXCLUDED.value, updated_at = NOW();
         `;

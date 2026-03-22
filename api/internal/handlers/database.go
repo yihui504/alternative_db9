@@ -30,10 +30,11 @@ type CreateDatabaseRequest struct {
 }
 
 type ExecuteSQLRequest struct {
-	SQL     string `json:"sql" binding:"required"`
-	Timeout int    `json:"timeout"`
-	Limit   int    `json:"limit"`
-	Offset  int    `json:"offset"`
+	SQL     string        `json:"sql" binding:"required"`
+	Params  []interface{} `json:"params"`
+	Timeout int           `json:"timeout"`
+	Limit   int           `json:"limit"`
+	Offset  int           `json:"offset"`
 }
 
 type SQLResponse struct {
@@ -348,7 +349,32 @@ func ExecuteSQL(c *gin.Context) {
 
 	hasMultipleStatements := containsMultipleStatements(req.SQL)
 
+	if len(req.Params) > 0 {
+		var args []interface{}
+		for _, p := range req.Params {
+			args = append(args, p)
+		}
+		
+		_, err = userPool.Exec(ctx, req.SQL, args...)
+		
+		if err != nil {
+			if ctx.Err() == context.DeadlineExceeded {
+				c.JSON(http.StatusRequestTimeout, gin.H{"error": fmt.Sprintf("Query timed out after %ds", timeout)})
+				return
+			}
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"results": nil,
+			"message": "SQL executed successfully",
+			"type":    "exec",
+		})
+		return
+	}
+
 	if hasMultipleStatements {
+		// 如果有多个语句，我们不支持参数化查询，强制转为普通执行
 		_, err = userPool.Exec(ctx, req.SQL)
 		if err != nil {
 			if ctx.Err() == context.DeadlineExceeded {
@@ -371,7 +397,12 @@ func ExecuteSQL(c *gin.Context) {
 		sqlToExecute = applyPagination(req.SQL, req.Limit, req.Offset)
 	}
 
-	rows, err := userPool.Query(ctx, sqlToExecute)
+	var args []interface{}
+	for _, p := range req.Params {
+		args = append(args, p)
+	}
+
+	rows, err := userPool.Query(ctx, sqlToExecute, args...)
 	if err != nil {
 		if ctx.Err() == context.DeadlineExceeded {
 			c.JSON(http.StatusRequestTimeout, gin.H{"error": fmt.Sprintf("Query timed out after %ds", timeout)})

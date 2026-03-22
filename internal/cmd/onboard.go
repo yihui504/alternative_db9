@@ -113,7 +113,7 @@ OpenClaw-db9 是一个面向 Agent 的数据库平台，特点是：
 
 ## 常用命令速查
 
-```bash
+` + "```bash" + `
 # 数据库管理
 oc-db9 db create <name>              # 创建数据库
 oc-db9 db list                       # 列出所有数据库
@@ -128,7 +128,7 @@ oc-db9 fs cat <path> --db <id>              # 查看文件内容
 
 # 类型生成
 oc-db9 gen types <name>              # 生成 TypeScript 类型
-```
+` + "```" + `
 
 ## 最佳实践
 

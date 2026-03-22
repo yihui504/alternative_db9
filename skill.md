@@ -100,6 +100,24 @@ oc-db9 fs cat <file-id>
 oc-db9 fs rm <file-id>
 ```
 
+### 记忆系统 (Memory)
+
+为 AI Agent 提供长期的跨会话记忆和偏好存储。
+
+```bash
+# 存储记忆
+oc-db9 memory store --db <database-id> --content "用户喜欢使用 Rust 语言" --metadata '{"category": "preference"}'
+
+# 搜索记忆
+oc-db9 memory search --db <database-id> --query "用户喜欢什么编程语言？" --limit 3
+
+# 设置偏好
+oc-db9 memory set-pref --db <database-id> --user default_user --key coding_style --value '{"indent": 4}'
+
+# 获取偏好
+oc-db9 memory get-pref --db <database-id> --user default_user
+```
+
 ### 向量搜索
 
 ```bash
